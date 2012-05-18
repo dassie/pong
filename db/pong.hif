@@ -1,0 +1,184 @@
+Quartus II 32-bit
+Version 11.1 Build 173 11/01/2011 SJ Web Edition
+14
+1370
+OFF
+OFF
+OFF
+ON
+ON
+ON
+FV_OFF
+Level2
+0
+0
+0
+0
+VRSM_ON
+VHSM_ON
+0
+-- Start Library Paths --
+-- End Library Paths --
+-- Start VHDL Libraries --
+-- End VHDL Libraries --
+# entity
+vga_sync
+# storage
+db|pong.(1).cnf
+db|pong.(1).cnf
+# logic_option {
+AUTO_RAM_RECOGNITION
+ON
+}
+# case_insensitive
+# source_file
+sync.vhd
+85b07ea44a341fb21e19f7d290c66a
+5
+# internal_option {
+HDL_INITIAL_FANOUT_LIMIT
+OFF
+AUTO_RESOURCE_SHARING
+OFF
+AUTO_RAM_RECOGNITION
+ON
+AUTO_ROM_RECOGNITION
+ON
+}
+# user_parameter {
+ constraint(pixel_x)
+9 downto 0
+PARAMETER_STRING
+USR
+ constraint(pixel_y)
+9 downto 0
+PARAMETER_STRING
+USR
+}
+# hierarchies {
+vga_sync:VGA
+}
+# macro_sequence
+
+# end
+# entity
+font_rom
+# storage
+db|pong.(3).cnf
+db|pong.(3).cnf
+# logic_option {
+AUTO_RAM_RECOGNITION
+ON
+}
+# case_insensitive
+# source_file
+font_rom.vhd
+d11c65a6c120992577b01687c129a66a
+5
+# internal_option {
+HDL_INITIAL_FANOUT_LIMIT
+OFF
+AUTO_RESOURCE_SHARING
+OFF
+AUTO_RAM_RECOGNITION
+ON
+AUTO_ROM_RECOGNITION
+ON
+}
+# user_parameter {
+ constraint(addr)
+10 downto 0
+PARAMETER_STRING
+USR
+ constraint(data)
+7 downto 0
+PARAMETER_STRING
+USR
+}
+# hierarchies {
+font_rom:font_unit
+}
+# macro_sequence
+
+# end
+# entity
+pong
+# storage
+db|pong.(0).cnf
+db|pong.(0).cnf
+# logic_option {
+AUTO_RAM_RECOGNITION
+ON
+}
+# case_insensitive
+# source_file
+pong.vhd
+4b97f7e4415e31ca9428ef4fc9394b3
+5
+# internal_option {
+HDL_INITIAL_FANOUT_LIMIT
+OFF
+AUTO_RESOURCE_SHARING
+OFF
+AUTO_RAM_RECOGNITION
+ON
+AUTO_ROM_RECOGNITION
+ON
+}
+# include_file {
+sync.vhd
+85b07ea44a341fb21e19f7d290c66a
+font_rom.vhd
+d11c65a6c120992577b01687c129a66a
+}
+# hierarchies {
+|
+}
+# macro_sequence
+
+# end
+# entity
+ball_clock
+# storage
+db|pong.(2).cnf
+db|pong.(2).cnf
+# logic_option {
+AUTO_RAM_RECOGNITION
+ON
+}
+# case_insensitive
+# source_file
+pong.vhd
+4b97f7e4415e31ca9428ef4fc9394b3
+5
+# internal_option {
+HDL_INITIAL_FANOUT_LIMIT
+OFF
+AUTO_RESOURCE_SHARING
+OFF
+AUTO_RAM_RECOGNITION
+ON
+AUTO_ROM_RECOGNITION
+ON
+}
+# user_parameter {
+ constraint(speed)
+3 downto 0
+PARAMETER_STRING
+USR
+}
+# include_file {
+sync.vhd
+85b07ea44a341fb21e19f7d290c66a
+font_rom.vhd
+d11c65a6c120992577b01687c129a66a
+}
+# hierarchies {
+ball_clock:BCLOCK
+ball_clock:PCLOCK
+}
+# macro_sequence
+
+# end
+# complete
+
