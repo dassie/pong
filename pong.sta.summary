@@ -1,0 +1,125 @@
+------------------------------------------------------------
+TimeQuest Timing Analyzer Summary
+------------------------------------------------------------
+
+Type  : Slow Model Setup 'iCLK_50'
+Slack : -10.336
+TNS   : -608.289
+
+Type  : Slow Model Setup 'ball_clock:BCLOCK|clk'
+Slack : -6.764
+TNS   : -208.320
+
+Type  : Slow Model Setup 'vga_sync:VGA|mod2_reg'
+Slack : -4.631
+TNS   : -51.834
+
+Type  : Slow Model Setup 'paddle_clock:PCLOCK|clk'
+Slack : -4.230
+TNS   : -39.873
+
+Type  : Slow Model Setup 'vga_sync:VGA|hcount_reg[9]'
+Slack : -2.793
+TNS   : -15.435
+
+Type  : Slow Model Hold 'vga_sync:VGA|mod2_reg'
+Slack : -2.854
+TNS   : -41.609
+
+Type  : Slow Model Hold 'iCLK_50'
+Slack : -2.691
+TNS   : -8.050
+
+Type  : Slow Model Hold 'vga_sync:VGA|hcount_reg[9]'
+Slack : -0.112
+TNS   : -0.219
+
+Type  : Slow Model Hold 'ball_clock:BCLOCK|clk'
+Slack : 0.391
+TNS   : 0.000
+
+Type  : Slow Model Hold 'paddle_clock:PCLOCK|clk'
+Slack : 0.935
+TNS   : 0.000
+
+Type  : Slow Model Minimum Pulse Width 'iCLK_50'
+Slack : -1.380
+TNS   : -75.380
+
+Type  : Slow Model Minimum Pulse Width 'ball_clock:BCLOCK|clk'
+Slack : -0.500
+TNS   : -36.000
+
+Type  : Slow Model Minimum Pulse Width 'vga_sync:VGA|mod2_reg'
+Slack : -0.500
+TNS   : -22.000
+
+Type  : Slow Model Minimum Pulse Width 'paddle_clock:PCLOCK|clk'
+Slack : -0.500
+TNS   : -10.000
+
+Type  : Slow Model Minimum Pulse Width 'vga_sync:VGA|hcount_reg[9]'
+Slack : 0.500
+TNS   : 0.000
+
+Type  : Fast Model Setup 'iCLK_50'
+Slack : -4.324
+TNS   : -249.229
+
+Type  : Fast Model Setup 'ball_clock:BCLOCK|clk'
+Slack : -2.542
+TNS   : -73.696
+
+Type  : Fast Model Setup 'vga_sync:VGA|mod2_reg'
+Slack : -2.068
+TNS   : -15.013
+
+Type  : Fast Model Setup 'paddle_clock:PCLOCK|clk'
+Slack : -1.289
+TNS   : -12.085
+
+Type  : Fast Model Setup 'vga_sync:VGA|hcount_reg[9]'
+Slack : -1.093
+TNS   : -4.078
+
+Type  : Fast Model Hold 'vga_sync:VGA|mod2_reg'
+Slack : -1.824
+TNS   : -26.445
+
+Type  : Fast Model Hold 'iCLK_50'
+Slack : -1.680
+TNS   : -5.018
+
+Type  : Fast Model Hold 'vga_sync:VGA|hcount_reg[9]'
+Slack : 0.102
+TNS   : 0.000
+
+Type  : Fast Model Hold 'ball_clock:BCLOCK|clk'
+Slack : 0.215
+TNS   : 0.000
+
+Type  : Fast Model Hold 'paddle_clock:PCLOCK|clk'
+Slack : 0.416
+TNS   : 0.000
+
+Type  : Fast Model Minimum Pulse Width 'iCLK_50'
+Slack : -1.380
+TNS   : -75.380
+
+Type  : Fast Model Minimum Pulse Width 'ball_clock:BCLOCK|clk'
+Slack : -0.500
+TNS   : -36.000
+
+Type  : Fast Model Minimum Pulse Width 'vga_sync:VGA|mod2_reg'
+Slack : -0.500
+TNS   : -22.000
+
+Type  : Fast Model Minimum Pulse Width 'paddle_clock:PCLOCK|clk'
+Slack : -0.500
+TNS   : -10.000
+
+Type  : Fast Model Minimum Pulse Width 'vga_sync:VGA|hcount_reg[9]'
+Slack : 0.500
+TNS   : 0.000
+
+------------------------------------------------------------

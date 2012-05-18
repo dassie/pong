@@ -1,0 +1,519 @@
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity pong is
+	port (
+			iCLK_50 : in std_logic;
+			iKEY : in std_logic_vector (3 downto 0);
+			iSW: in std_logic_vector(17 downto 0);
+			
+			oLEDR :out std_logic_vector(17 downto 14);
+			
+			oVGA_CLOCK :out std_logic;
+			oVGA_SYNC_N :out std_logic;
+			oVGA_BLANK_N :out std_logic;
+			oVGA_HS, oVGA_VS :out std_logic;
+			oVGA_R :out std_logic_vector(9 downto 0);
+			oVGA_G :out std_logic_vector(9 downto 0);
+			oVGA_B :out std_logic_vector(9 downto 0)
+		 );
+end entity pong;
+
+architecture wvr of pong is
+	type state is (pause, playing);
+	signal game_state, next_state : state := playing;
+	
+	signal px, py : unsigned(9	downto 0);
+	signal pix_x, pix_y : std_logic_vector(9 downto 0);
+	
+	constant screen_width : integer := 640;
+	constant screen_height : integer := 510;
+	
+	--Signals for wall dimensions
+	constant WALL_X : integer := 0;
+	constant WALL_WIDTH : integer := 15;
+	constant WALL_R : std_logic_vector(9 downto 0) := "1101110011";
+	constant WALL_G : std_logic_vector(9 downto 0) := "0001010011";
+	constant WALL_B : std_logic_vector(9 downto 0) := "0011110000";
+	signal wall_on : std_logic;
+	
+	--A horizontal bar to separate the text messages from the rest of the screen
+	signal bar_on : std_logic;
+	constant H_H : integer := 5;
+	
+	--Signals for the ball
+	signal ball_x : unsigned(9 downto 0) := "0001100100"; --320
+	signal ball_y : unsigned(9 downto 0) := "0011001000"; --240
+	constant BALL_WIDTH : integer := 17;
+	constant BALL_R : std_logic_vector(9 downto 0) := "0000000000";
+	constant BALL_G : std_logic_vector(9 downto 0) := "1000000000";
+	constant BALL_B : std_logic_vector(9 downto 0) := "0000000000";
+	signal ball_clock : std_logic;
+	signal ball_speed : unsigned(3 downto 0) := "0001";
+	signal ball_on : std_logic;
+	signal forward : std_logic := '1';
+	signal downward : std_logic := '1';
+	
+	--Signals for the paddle
+	signal paddle_x : unsigned(9 downto 0) := "1001101100"; --600
+	signal paddle_y : unsigned(9 downto 0) := "0011010111"; --215
+	constant PADDLE_WIDTH : integer := 8;
+	constant PADDLE_HEIGHT : integer := 60;
+	constant PADDLE_R : std_logic_vector(9 downto 0) := "1111111111"; --255
+	constant PADDLE_G : std_logic_vector(9 downto 0) := "0100010111"; --69
+	constant PADDLE_B : std_logic_vector(9 downto 0) := "0000000011"; --0
+	signal paddle_on : std_logic := '1';
+	signal paddle_clock : std_logic;
+	signal paddle_speed : unsigned(3 downto 0);
+	
+	--Signals for the score and lives text message
+	signal bit_addr, bit_addr_s : std_logic_vector(2 downto 0);
+	signal row_addr, row_addr_s : std_logic_vector(3 downto 0);
+	signal char_addr, char_addr_s : std_logic_vector(6 downto 0);
+	signal rom_addr : std_logic_vector(10 downto 0);
+	signal font_word : std_logic_vector(7 downto 0);
+	signal font_bit : std_logic;
+	signal score_on :std_logic;
+	signal text_bit_on : std_logic;
+	signal heart_char_on : std_logic;
+	signal vga_on : std_logic;
+	
+--	signal reset : std_logic;
+
+	--Signals for computing the score
+	signal score_inc, score_clr : std_logic;
+	signal dig1, dig2 : std_logic_vector(3 downto 0);
+	signal dig1_u, dig2_u : unsigned(3 downto 0) := "0000";
+	--Pause signal
+	signal pause_h : std_logic := '0';
+	
+	signal lives : unsigned(1 downto 0) := "11";
+	
+	signal pixel_clock : std_logic;
+begin
+	--For debugging the speed
+	oLEDR(14) <= ball_speed(0);
+	oLEDR(15) <= ball_speed(1);
+	oLEDR(16) <= ball_speed(2);
+	oLEDR(17) <= ball_speed(3);
+	
+	--The VGA sync generator
+	oVGA_CLOCK <= pixel_clock;
+	oVGA_SYNC_N <= '0';
+	VGA: work.vga_sync port map(
+							clk50 => iCLK_50,
+							reset => iKEY(1),
+							hsync => oVGA_HS,
+							vsync => oVGA_VS,
+							video_on => oVGA_BLANK_N,
+							p_tick => pixel_clock,
+							pixel_x => pix_x,
+							pixel_y => pix_y
+						);
+	px <= unsigned(pix_x);
+	py <= unsigned(pix_y);
+	
+	--Create clocks for the paddle and the ball
+	BCLOCK: work.ball_clock port map(iCLK_50, ball_clock, ball_speed);
+	--PCLOCK: work.ball_clock port map(iCLK_50, paddle_clock, ball_speed);
+	PCLOCK: work.paddle_clock port map(iCLK_50, paddle_clock, ball_speed);
+	
+	--Create a font rom
+	font_unit: work.font_rom port map(clk => iCLK_50, addr => rom_addr, data => font_word);
+	
+	--A score counter
+	--SCORE: work.score_counter port map(clk => iCLK_50, reset => '0', inc => score_inc, clr => score_clr, dig1 => dig1, dig2 => dig2);
+	dig1 <= std_logic_vector(dig1_u);
+	dig2 <= std_logic_vector(dig2_u);
+	
+	--Compute the ON signals for all objects
+	bar_on <= '1' when (py >= 64 and py <= 68) else '0';
+	wall_on <= '1' when (px >= WALL_X and px <= WALL_X + WALL_WIDTH) and (py >= 69) else '0';
+	process (px, py)
+	begin
+		if (px >= ball_x and px <= (ball_x + BALL_WIDTH)) and (py >= ball_y and py <= (ball_y + BALL_WIDTH)) then
+			if ((((px - ball_x - 8)*(px - ball_x - 8))+ ((py - ball_y - 8)*(py - ball_y - 8))) < 64 or (((ball_x + 8 - px)*( ball_x + 8 - px))+ ((py - ball_y - 8)*(py - ball_y - 8)))<64 or (((px - ball_x - 8)*(px - ball_x - 8))+ (( ball_y + 8 - py)*(ball_y + 8 - py)))<64 or (((ball_x + 8 - px)*( ball_x + 8 - px))+ (( ball_y + 8 - py)*(ball_y + 8 - py)))<64 ) then
+				ball_on <= '1';
+			else
+				ball_on <= '0';
+			end if;
+		else
+		ball_on <= '0';
+		end if;
+	end process;
+
+	paddle_on <= '1' when
+								(px >= paddle_x and px <= (paddle_x + PADDLE_WIDTH)) and
+								(py >= paddle_y and py <= (paddle_y + PADDLE_HEIGHT))
+							else '0';
+	score_on <= '1' when py >= 32 and py < 64 and px < 512 else '0';
+	heart_char_on <= '1' when 
+									pix_x(8 downto 4) = "10001" or
+									pix_x(8 downto 4) = "10010" or
+									pix_x(8 downto 4) = "10011"
+								else
+									'0';
+	
+	--Service pause signal
+	pause_h <= '1' when iSW(17) = '1' else '0';
+
+	--Form ROM address and font bit
+	rom_addr <= char_addr & row_addr;
+	font_bit <= font_word(to_integer(unsigned(not bit_addr)));	
+	
+	--Computations for displaying the text message at the top
+	row_addr_s <= std_logic_vector(py(4 downto 1));
+	bit_addr_s <= std_logic_vector(px(3 downto 1));
+	text_bit_on <= font_bit when pix_x(9) = '0' and pix_y(9 downto 6) = "0000" else '0';
+	with pix_x(8 downto 4) select
+		char_addr_s <= 
+			"1010011" when "00000", --S
+			"1100011" when "00001", --c
+			"1101111" when "00010", --o
+			"1110010" when "00011", --r
+			"1100101" when "00100", --e
+			"0101000" when "00101", --(
+			"011"&dig1 when "00110", --digit 1
+			"011"&dig2 when "00111", --digit 2
+			"0101001" when "01000", --)
+			"0000000" when "01001", --space
+			"0000000" when "01010", --space
+			"1001100" when "01011", --L
+			"1101001" when "01100", --i
+			"1110110" when "01101", --v
+			"1100101" when "01110", --e
+			"1110011" when "01111", --s
+			"0101000" when "10000", --(
+			"0000011" when "10001", --heart
+			"0000011" when "10010", --heart
+			"0000011" when "10011", --heart
+			"0101001" when "10100", --)
+			"0000000" when "10101", --space
+			"0000000" when "10110", --space
+			"1010000" when "10111", --P
+			"1000001" when "11000", --A
+			"1010101" when "11001", --U
+			"1010011" when "11010", --S
+			"1000101" when "11011", --E
+			"0000000" when others;
+	
+	--Moving the paddle
+	process (paddle_clock)
+	begin
+		if (Rising_Edge(paddle_clock) and pause_h = '0') then
+			if (iKEY(2) = '0' or iSW(0) = '1') then
+				if (paddle_y /= 69) then
+					paddle_y <= paddle_y - 1;
+				else
+					paddle_y <= paddle_y;
+				end if;
+			elsif (iKEY(3) = '0' or iSW(1) = '1') then
+				if ((paddle_y + PADDLE_HEIGHT) /= screen_height) then
+					paddle_y <= paddle_y + 1;
+				else
+					paddle_y <= paddle_y;
+				end if;
+			end if;
+		end if;
+	end process;
+	
+	--Moving the ball/collision detection
+	process (ball_clock)
+	begin
+		if (Rising_Edge(ball_clock) and pause_h = '0') then
+			if (((ball_x + BALL_WIDTH) = paddle_x) and 
+			   (((ball_y + BALL_WIDTH) >= paddle_y) or (ball_y >= paddle_y)) and 
+			   ((ball_y + BALL_WIDTH) <= (paddle_y + PADDLE_HEIGHT) or (ball_y <= (paddle_y + PADDLE_HEIGHT)))) then
+				
+				if (dig2_u = "1001") then
+					dig2_u <= "0000";
+					if (dig1_u = "1001") then
+						dig1_u <= "0000";
+					else
+						dig1_u <= dig1_u + 1;
+					end if;
+					
+					if (ball_speed = "1111") then
+						ball_speed <= "0001";
+					else
+						ball_speed <= ball_speed + 1;
+					end if;
+				elsif (dig2_u = "0101") then
+					dig2_u <= dig2_u + 1;
+					if (ball_speed = "1111") then
+						ball_speed <= "0001";
+					else
+						ball_speed <= ball_speed + 1;
+					end if;
+				elsif (dig2_u = "0011") then
+					dig2_u <= dig2_u + 1;
+					if (ball_speed = "1111") then
+						ball_speed <= "0001";
+					else
+						ball_speed <= ball_speed + 1;
+					end if;
+				elsif (dig2_u = "0010") then
+					dig2_u <= dig2_u + 1;
+					if (ball_speed = "1111") then
+						ball_speed <= "0001";
+					else
+						ball_speed <= ball_speed + 1;
+					end if;
+				else
+					dig2_u <= dig2_u + 1;
+				end if;
+				
+				forward <= '0';
+				ball_x <= ball_x - 1;
+				
+				if (downward = '1') then
+					downward <= '0';
+					ball_y <= ball_y - 1;
+				else
+					ball_y <= ball_y + 1;
+				end if;
+			else
+				score_inc <= '0';
+				
+				if (forward = '1') then
+					if (ball_x = screen_width) then
+						if (lives = "00") then
+							dig1_u <= "0000";
+							dig2_u <= "0000";
+							lives <= "11";
+							
+							ball_speed <= "0001";
+						else
+							lives <= lives - 1;
+						end if;
+
+						ball_x <= "0001100100";
+						ball_y <= "0011001000";
+						downward <= '1';
+					else
+						ball_x <= ball_x + 1;
+					end if;
+				else
+					if (ball_x = WALL_X + WALL_WIDTH) then
+						forward <= '1';
+						ball_x <= ball_x + 1;
+					else
+						ball_x <= ball_x - 1;
+					end if;
+				end if;
+				
+				if (downward = '1') then
+					if (ball_y + BALL_WIDTH = screen_height) then
+						downward <= '0';
+						ball_y <= ball_y - 1;
+					else
+						ball_y <= ball_y + 1;
+					end if;
+				else
+					if (ball_y = 69) then
+						downward <= '1';
+						ball_y <= ball_y + 1;
+					else
+						ball_y <= ball_y - 1;
+					end if;
+				end if;
+			end if;
+		end if;
+	end process;
+	
+	
+	--Display all objects
+	process (score_on, wall_on, ball_on, px, py, iSW, char_addr_s, row_addr_s, bit_addr_s, text_bit_on)
+	begin
+		if (score_on = '1') then
+			char_addr <= char_addr_s;
+			row_addr <= row_addr_s;
+			bit_addr <= bit_addr_s;
+			if (text_bit_on = '1') then
+			--   if (reset = '1') then
+			--	    lives <= "11" ;
+			--		 end if;
+				if (px <= 352) then
+					if (heart_char_on = '1') then
+						if (lives = 2) then
+							if ((px >= 272) and (px < 288)) then
+								oVGA_R <= "1111111111";
+								oVGA_G <= "1111111111";
+								oVGA_B <= "1111111111";
+							else
+								oVGA_R <= "1111111111";
+								oVGA_G <= "0000000000";
+								oVGA_B <= "0000000000";
+							end if;
+						elsif (lives = 1) then
+							if (px >= 272 and px < 304) then
+								oVGA_R <= "1111111111";
+								oVGA_G <= "1111111111";
+								oVGA_B <= "1111111111";
+							else
+								oVGA_R <= "1111111111";
+								oVGA_G <= "0000000000";
+								oVGA_B <= "0000000000";
+							end if;
+						elsif (lives = 0) then
+							if (px >= 272 and px <= 320) then
+								oVGA_R <= "1111111111";
+								oVGA_G <= "1111111111";
+								oVGA_B <= "1111111111";
+							else
+								oVGA_R <= "1111111111";
+								oVGA_G <= "0000000000";
+								oVGA_B <= "0000000000";
+							end if;
+						else
+							oVGA_R <= "1111111111";
+							oVGA_G <= "0000000000";
+							oVGA_B <= "0000000000";
+						end if;
+					else
+						oVGA_R <= "0000000000";
+						oVGA_G <= "0000000000";
+						oVGA_B <= "0000000000";
+					end if;
+				else
+					if (pause_h = '1') then
+						oVGA_R <= "0000000000";
+						oVGA_G <= "0000000000";
+						oVGA_B <= "0000000000";
+					else
+						oVGA_R <= "1111111111";
+						oVGA_G <= "1111111111";
+						oVGA_B <= "1111111111";
+					end if;
+				end if;
+			else
+				oVGA_R <= "1111111111";
+				oVGA_G <= "1111111111";
+				oVGA_B <= "1111111111";	
+			end if;
+		elsif (bar_on = '1' or wall_on = '1') then
+			oVGA_R <= WALL_R;
+			oVGA_G <= WALL_G;
+			oVGA_B <= WALL_B;
+		elsif (ball_on = '1') then
+			oVGA_R <= BALL_R;
+			oVGA_G <= BALL_G;
+			oVGA_B <= BALL_B;
+		elsif (paddle_on = '1') then
+			oVGA_R <= PADDLE_R;
+			oVGA_G <= PADDLE_G;
+			oVGA_B <= PADDLE_B;
+		else
+			if (iSW(5) = '1') then
+				oVGA_R <= (others => '1');
+			else
+				oVGA_R <= (others => '0');
+			end if;
+			
+			if (iSW(4) = '1') then
+				oVGA_G <= (others => '1');
+			else
+				oVGA_G <= (others => '0');
+			end if;
+			
+			if (iSW(3) = '1') then
+				oVGA_B <= (others => '1');
+			else
+				oVGA_B <= (others => '0');
+			end if;
+		end if;
+	end process;
+end wvr;
+
+
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity ball_clock is
+	port (
+			cin :in std_logic;
+			cout :out std_logic;
+			
+			speed : in unsigned(3 downto 0)
+			);
+end entity ball_clock;
+
+architecture counter of ball_clock is
+	signal clk : std_logic := '1';
+	signal mu : integer range 0 to 999999999;
+begin
+	process (cin, speed)
+		variable lim : integer range 0 to 999999999;
+	begin
+		mu <= 100000 - (9000 * to_integer(speed));
+		if (Rising_Edge(cin)) then
+			if (lim >= mu) then
+				lim := 0;
+				clk <= not clk;
+			else
+				lim := lim + 1;
+			end if;
+		end if;
+	end process;
+	
+	cout <= clk;
+end architecture counter;
+				
+
+library ieee;
+use ieee.std_logic_1164.all;
+use ieee.numeric_std.all;
+
+entity paddle_clock is
+	port (
+			cin :in std_logic;
+			cout :out std_logic;
+			
+			speed : in unsigned(3 downto 0)
+			);
+end entity paddle_clock;
+
+architecture counter of paddle_clock is
+	signal clk : std_logic := '1';
+	signal mu : integer range 0 to 999999999;
+begin
+	process (cin, speed)
+		variable lim : integer range 0 to 999999999;
+	begin
+		mu <= 100000 + (3000 * to_integer(speed));
+		if (Rising_Edge(cin)) then
+			if (lim >= mu) then
+				lim := 0;
+				clk <= not clk;
+			else
+				lim := lim + 1;
+			end if;
+		end if;
+	end process;
+	
+	cout <= clk;
+end architecture counter;
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

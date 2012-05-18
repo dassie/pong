@@ -1,0 +1,15 @@
+This is a one player pong game written for a digital
+systems design course. It's implemented in HW in
+VHDL for a Terassic DE2-70 dev-kit, which uses an 
+Altera Cyclone II FPGA.
+
+The player controls a paddle that moves vertically 
+across the screen and deflects a red ball. The player 
+scores points for deflecting the ball and is given 4
+lives. As the score increases the ball will begin to 
+speed up to make the game more challenging.
+
+The circuit features
+o A VGA Sync generator
+o A Character ROM to form the Score Display
+o Varying clock for the ball to speed it up
